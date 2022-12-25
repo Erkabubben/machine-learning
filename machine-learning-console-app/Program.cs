@@ -26,6 +26,33 @@ class Program
         irisDataset.PrintDataset();
     }
 
+    public class NaiveBayes
+    {
+        private class Category
+        {
+            private float[][] _inputs;
+            private float[] _means;
+            private float[] _stds;
+            public float[][] Inputs { get => _inputs; set => _inputs = value; }
+            public float[] Means { get => _means; set => _means = value; }
+            public float[] Stds { get => _stds; set => _stds = value; }
+        }
+
+        public void Fit(float[][] x, int[] y)
+        {
+            var categories = new Dictionary<int, Category>();
+            for (int i = 0; i < x.Length; i++)
+            {
+
+            }
+        }
+
+        public int[] Predict(float[][] x)
+        {
+            return null;
+        }
+    }
+
     public class ParsedDataset
     {
         private float[][] _inputs;
