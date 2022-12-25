@@ -22,13 +22,18 @@ class Program
 
     public Program(string[] args)
     {
-        var irisDataset = ReadDataset("iris");
-        irisDataset.PrintDataset();
+        var datasets = new string[] { "iris", "banknote_authentication" };
+        var dataset = ReadDataset(datasets[0]);
+        //dataset.PrintDataset();
 
-        var irisNaiveBayesModel = new NaiveBayes();
-        irisNaiveBayesModel.Fit(irisDataset.Inputs, irisDataset.Labels);
-        irisNaiveBayesModel.PrintModels(irisDataset.IdToWord, irisDataset.AttributeNames);
-        irisNaiveBayesModel.TestCalculateGaussianPDF();
+        var naiveBayesModel = new NaiveBayes();
+        naiveBayesModel.Fit(dataset.Inputs, dataset.Labels);
+        //naiveBayesModel.PrintModels(dataset.IdToWord, dataset.AttributeNames);
+        //naiveBayesModel.PrintTestCalculateGaussianPDF();
+
+        var predictions = naiveBayesModel.Predict(dataset.Inputs);
+        naiveBayesModel.PrintPredictions(dataset.IdToWord, dataset.Labels, predictions);
+        naiveBayesModel.PrintAccuracyScore(predictions, dataset.Labels);
     }
 
     public class NaiveBayes
@@ -88,45 +93,7 @@ class Program
         }
 
         private float CalculateGaussianPDF(float x, float mean, float std)
-        {
-            double pdf = (1 / (Math.Sqrt(2 * Math.PI) * std)) * Math.Pow(Math.E, (-(Math.Pow((x - mean), 2)) / (2 * Math.Pow(std, 2))));
-            //(1 / (sqrt(2 * PI) * std)) * e ^ (-((x - mean)^2)/ (2 * std ^ 2)))
-            return (float)pdf;
-        }
-
-        public void TestCalculateGaussianPDF()
-        {
-            Console.WriteLine("Test GaussianPDF Function 0: " + CalculateGaussianPDF(1.6f, 1.45f, 0.14f));
-            Console.WriteLine("Test GaussianPDF Function 1: " + CalculateGaussianPDF(0.8f, 0.25f, 0.08f));
-            Console.WriteLine("Test GaussianPDF Function 2: " + CalculateGaussianPDF(1.6f, 4.40f, 0.52f));
-            Console.WriteLine("Test GaussianPDF Function 3: " + CalculateGaussianPDF(0.8f, 1.40f, 0.24f));
-        }
-
-        public int[] Predict0(float[][] x)
-        {
-            var predictions = new int[x.Length];
-            for (int i = 0; i < predictions.Length; i++)
-            {
-                var input = x[i];
-                //var categoryPs = new Dictionary<int, float>();
-                for (int j = 0; j < input.Length; j++)
-                {
-                    var attributePDFs = new Dictionary<int, float>();
-                    float pdfs = 0f;
-                    foreach (KeyValuePair<int, Category> keyValPair in _categories)
-                    {
-                        var category = keyValPair.Value;
-                        float gaussianPDF = CalculateGaussianPDF(input[j], category.Means[j], category.Stds[j]);
-                        attributePDFs.Add(j, gaussianPDF);
-                    }
-                    float p = 0;
-                    foreach (KeyValuePair<int, float> keyValPair in attributePDFs)
-                        p *= keyValPair.Value;
-                }
-            }
-
-            return null;
-        }
+            => (float)((1 / (Math.Sqrt(2 * Math.PI) * std)) * Math.Pow(Math.E, (-(Math.Pow((x - mean), 2)) / (2 * Math.Pow(std, 2)))));
 
         public int[] Predict(float[][] x)
         {
@@ -144,28 +111,36 @@ class Program
                         float gaussianPDF = CalculateGaussianPDF(input[j], category.Means[j], category.Stds[j]);
                         attributePDFs[j] = gaussianPDF;
                     }
-                    float p = 0;
+                    float p = 1f;
                     foreach (float pdf in attributePDFs)
                         p *= pdf;
                     categoryPDFs.Add(keyValPair.Key, p);
                 }
                 float sumOfPs = 0;
-                var categoryPsNormalized = new Dictionary<int, float>();
                 foreach (KeyValuePair<int, float> keyValPair in categoryPDFs)
                     sumOfPs += keyValPair.Value;
+                var categoryPsNormalized = new Dictionary<int, float>();
                 foreach (KeyValuePair<int, float> keyValPair in categoryPDFs)
                     categoryPsNormalized.Add(keyValPair.Key, keyValPair.Value / sumOfPs);
 
-                predictions[i] = categoryPsNormalized.Aggregate((x, y) => x.Value > y.Value ? x : y).Key;
+                var categoryWithHighestProbability = categoryPsNormalized.Aggregate(
+                    (x, y) => x.Value > y.Value ? x : y).Key;
+                predictions[i] = categoryWithHighestProbability;
             }
 
             return predictions;
         }
 
-        public float AccuracyScore(int[] predictions)
+        public float AccuracyScore(int[] predictions, int[] y)
         {
+            int correct = 0;
+            for (int i = 0; i < predictions.Length; i++)
+            {
+                if (predictions[i] == y[i])
+                    correct++;
+            }
 
-            return 0f;
+            return (float)correct / predictions.Length;
         }
 
         public void PrintModels(Dictionary<int, string> idToWord, string[] attributeNames = null)
@@ -190,6 +165,34 @@ class Program
                 Console.WriteLine(meansStr);
                 Console.WriteLine(stdsStr);
             }
+        }
+
+        public void PrintPredictions(Dictionary<int, string> idToWord, int[] x0, int[] x1)
+        {
+            Console.WriteLine($"Printing predictions:");
+            int correct = 0;
+            for (int i = 0; i < x0.Length; i++)
+            {
+                if (x0[i] == x1[i])
+                    correct++;
+
+                var label0 = idToWord.ContainsKey(x0[i]) ? idToWord[x0[i]] : x0[i].ToString();
+                var label1 = idToWord.ContainsKey(x1[i]) ? idToWord[x1[i]] : x1[i].ToString();
+                Console.WriteLine($"\t{i} : {label0} / {label1}");
+            }
+            Console.WriteLine($"Correct predictions : {correct} / {x0.Length}");
+        }
+
+        public void PrintTestCalculateGaussianPDF()
+        {
+            Console.WriteLine("Test GaussianPDF Function 0: " + CalculateGaussianPDF(1.6f, 1.45f, 0.14f));
+            Console.WriteLine("Test GaussianPDF Function 1: " + CalculateGaussianPDF(0.8f, 0.25f, 0.08f));
+            Console.WriteLine("Test GaussianPDF Function 2: " + CalculateGaussianPDF(1.6f, 4.40f, 0.52f));
+            Console.WriteLine("Test GaussianPDF Function 3: " + CalculateGaussianPDF(0.8f, 1.40f, 0.24f));
+        }
+        public void PrintAccuracyScore(int[] predictions, int[] y)
+        {
+            Console.WriteLine($"Accuracy: {AccuracyScore(predictions, y)}");
         }
     }
 
