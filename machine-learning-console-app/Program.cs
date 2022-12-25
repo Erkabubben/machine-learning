@@ -24,26 +24,89 @@ class Program
     {
         var irisDataset = ReadDataset("iris");
         irisDataset.PrintDataset();
+
+        var irisNaiveBayesModel = new NaiveBayes();
+        irisNaiveBayesModel.Fit(irisDataset.Inputs, irisDataset.Labels);
+        irisNaiveBayesModel.PrintModels(irisDataset.IdToWord, irisDataset.AttributeNames);
     }
 
     public class NaiveBayes
     {
         private class Category
         {
-            private float[][] _inputs;
+            private List<float[]> _inputs;
             private float[] _means;
             private float[] _stds;
-            public float[][] Inputs { get => _inputs; set => _inputs = value; }
+            public List<float[]> Inputs { get => _inputs; set => _inputs = value; }
             public float[] Means { get => _means; set => _means = value; }
             public float[] Stds { get => _stds; set => _stds = value; }
+
+            public Category()
+            {
+                _inputs = new List<float[]>();
+            }
         }
+
+        private Dictionary<int, Category> _categories;
 
         public void Fit(float[][] x, int[] y)
         {
             var categories = new Dictionary<int, Category>();
             for (int i = 0; i < x.Length; i++)
             {
+                var inputs = x[i];
+                var label = y[i];
+                if (!categories.ContainsKey(label))
+                    categories.Add(label, new Category());
 
+                categories[label].Inputs.Add(inputs);
+            }
+
+            double StandardDeviation(List<float> values)
+            {
+                double avg = values.Average();
+                return Math.Sqrt(values.Average(v => Math.Pow(v - avg, 2)));
+            }
+
+            foreach (var category in categories.Values)
+            {
+                category.Means = new float[category.Inputs[0].Length];
+                category.Stds = new float[category.Inputs[0].Length];
+                for (int j = 0; j < category.Inputs[0].Length; j++)
+                {
+                    List<float> values = new List<float>();
+                    for (int k = 0; k < category.Inputs.Count; k++)
+                        values.Add(category.Inputs[k][j]);
+
+                    category.Means[j] = values.Average();
+                    category.Stds[j] = (float)StandardDeviation(values);
+                }
+            }
+
+            _categories = categories;
+        }
+
+        public void PrintModels(Dictionary<int, string> idToWord, string[] attributeNames = null)
+        {
+            foreach (KeyValuePair<int, Category> keyValPair in _categories)
+            {
+                var label = idToWord.ContainsKey(keyValPair.Key) ? idToWord[keyValPair.Key] : keyValPair.Key.ToString();
+                var category = keyValPair.Value;
+                Console.WriteLine($"Printing Category '{label}':");
+                var attributeNamesStr = "\t";
+                var meansStr = "\t";
+                var stdsStr = "\t";
+                for (int i = 0; i < category.Means.Length; i++)
+                {
+                    if (attributeNames != null)
+                        attributeNamesStr += attributeNames[i] + "\t";
+                    meansStr += category.Means[i] + "\t";
+                    stdsStr += category.Stds[i] + "\t";
+                }
+                if (attributeNames != null)
+                    Console.WriteLine(attributeNamesStr);
+                Console.WriteLine(meansStr);
+                Console.WriteLine(stdsStr);
             }
         }
 
@@ -59,10 +122,12 @@ class Program
         private int[] _labels;
         private Dictionary<string, int> _wordToId;
         private Dictionary<int, string> _idToWord;
+        private string[] _attributeNames;
         public float[][] Inputs { get => _inputs; set => _inputs = value; }
         public int[] Labels { get => _labels; set => _labels = value; }
         public Dictionary<string, int> WordToId { get => _wordToId; set => _wordToId = value; }
         public Dictionary<int, string> IdToWord { get => _idToWord; set => _idToWord = value; }
+        public string[] AttributeNames { get => _attributeNames; set => _attributeNames = value; }
 
         public ParsedDataset()
         {
@@ -144,6 +209,9 @@ class Program
         {
             if (values.Length < 2)
                 return;
+
+            if (parsedDataset.AttributeNames == null)
+                parsedDataset.AttributeNames = firstLineValues;
 
             var floats = new float[values.Length - 1];
 
