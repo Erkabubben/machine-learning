@@ -22,15 +22,18 @@ class Program
 
     public Program(string[] args)
     {
-        ReadDatasets("iris");
+        var irisDataset = ReadDataset("iris");
+        irisDataset.PrintDataset();
     }
 
     public class ParsedDataset
     {
-        private float[,] _inputs;
+        private float[][] _inputs;
         private int[] _labels;
         private Dictionary<string, int> _wordToId;
         private Dictionary<int, string> _idToWord;
+        public float[][] Inputs { get => _inputs; set => _inputs = value; }
+        public int[] Labels { get => _labels; set => _labels = value; }
         public Dictionary<string, int> WordToId { get => _wordToId; set => _wordToId = value; }
         public Dictionary<int, string> IdToWord { get => _idToWord; set => _idToWord = value; }
 
@@ -38,13 +41,6 @@ class Program
         {
             _wordToId = new Dictionary<string, int>();
             _idToWord = new Dictionary<int, string>();
-        }
-
-        public void PrintIdToWord()
-        {
-            Console.WriteLine($"Printing contents of IdToWord:");
-            foreach (var keyvalpair in IdToWord)
-                Console.WriteLine($"\t {keyvalpair.Key} : {keyvalpair.Value}");
         }
 
         public int GetIdForWord(string word)
@@ -61,6 +57,12 @@ class Program
                 return id;
             }
         }
+        public void PrintIdToWord()
+        {
+            Console.WriteLine($"Printing contents of IdToWord:");
+            foreach (var keyvalpair in IdToWord)
+                Console.WriteLine($"\t {keyvalpair.Key} : {keyvalpair.Value}");
+        }
 
         public void PrintWordToId()
         {
@@ -68,9 +70,22 @@ class Program
             foreach (var keyvalpair in WordToId)
                 Console.WriteLine($"\t {keyvalpair.Key} : {keyvalpair.Value}");
         }
+
+        public void PrintDataset()
+        {
+            Console.WriteLine($"Printing contents of parsed dataset:");
+            for (int i = 0; i < _inputs.Length; i++)
+            {
+                var s = "";
+                for (int j = 0; j < _inputs[i].Length; j++)
+                    s += _inputs[i][j] + "\t";
+
+                Console.WriteLine($"\t{s}: {_labels[i]}");
+            }
+        }
     }
 
-    void ReadDatasets(string nameOfDataset)
+    private ParsedDataset ReadDataset(string nameOfDataset)
     {
         void ReadCSV(string path, Action<string[], string[]> onReadLineAction)
         {
@@ -94,6 +109,7 @@ class Program
             }
         }
 
+        var parsedDataset = new ParsedDataset();
         var inputs = new List<float[]>();
         var labels = new List<int>();
 
@@ -106,14 +122,18 @@ class Program
 
             for (int i = 0; i < values.Length; i++)
             {
-                string? value = values[i];
                 if (i != values.Length - 1)
-                    floats[i] = float.Parse(value);
+                    floats[i] = float.Parse(values[i].Replace('.', ','));
                 else
-                    labels.Add(0);
+                    labels.Add(parsedDataset.GetIdForWord(values[i]));
             }
 
             inputs.Add(floats);
         });
+
+        parsedDataset.Inputs = inputs.ToArray();
+        parsedDataset.Labels = labels.ToArray();
+
+        return parsedDataset;
     }
 }
