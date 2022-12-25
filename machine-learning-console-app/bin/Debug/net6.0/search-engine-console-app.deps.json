@@ -1,0 +1,23 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v6.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v6.0": {
+      "search-engine-console-app/1.0.0": {
+        "runtime": {
+          "search-engine-console-app.dll": {}
+        }
+      }
+    }
+  },
+  "libraries": {
+    "search-engine-console-app/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}
