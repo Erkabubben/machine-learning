@@ -28,6 +28,7 @@ class Program
         var irisNaiveBayesModel = new NaiveBayes();
         irisNaiveBayesModel.Fit(irisDataset.Inputs, irisDataset.Labels);
         irisNaiveBayesModel.PrintModels(irisDataset.IdToWord, irisDataset.AttributeNames);
+        irisNaiveBayesModel.TestCalculateGaussianPDF();
     }
 
     public class NaiveBayes
@@ -86,6 +87,87 @@ class Program
             _categories = categories;
         }
 
+        private float CalculateGaussianPDF(float x, float mean, float std)
+        {
+            double pdf = (1 / (Math.Sqrt(2 * Math.PI) * std)) * Math.Pow(Math.E, (-(Math.Pow((x - mean), 2)) / (2 * Math.Pow(std, 2))));
+            //(1 / (sqrt(2 * PI) * std)) * e ^ (-((x - mean)^2)/ (2 * std ^ 2)))
+            return (float)pdf;
+        }
+
+        public void TestCalculateGaussianPDF()
+        {
+            Console.WriteLine("Test GaussianPDF Function 0: " + CalculateGaussianPDF(1.6f, 1.45f, 0.14f));
+            Console.WriteLine("Test GaussianPDF Function 1: " + CalculateGaussianPDF(0.8f, 0.25f, 0.08f));
+            Console.WriteLine("Test GaussianPDF Function 2: " + CalculateGaussianPDF(1.6f, 4.40f, 0.52f));
+            Console.WriteLine("Test GaussianPDF Function 3: " + CalculateGaussianPDF(0.8f, 1.40f, 0.24f));
+        }
+
+        public int[] Predict0(float[][] x)
+        {
+            var predictions = new int[x.Length];
+            for (int i = 0; i < predictions.Length; i++)
+            {
+                var input = x[i];
+                //var categoryPs = new Dictionary<int, float>();
+                for (int j = 0; j < input.Length; j++)
+                {
+                    var attributePDFs = new Dictionary<int, float>();
+                    float pdfs = 0f;
+                    foreach (KeyValuePair<int, Category> keyValPair in _categories)
+                    {
+                        var category = keyValPair.Value;
+                        float gaussianPDF = CalculateGaussianPDF(input[j], category.Means[j], category.Stds[j]);
+                        attributePDFs.Add(j, gaussianPDF);
+                    }
+                    float p = 0;
+                    foreach (KeyValuePair<int, float> keyValPair in attributePDFs)
+                        p *= keyValPair.Value;
+                }
+            }
+
+            return null;
+        }
+
+        public int[] Predict(float[][] x)
+        {
+            var predictions = new int[x.Length];
+            for (int i = 0; i < predictions.Length; i++)
+            {
+                var input = x[i];
+                var categoryPDFs = new Dictionary<int, float>();
+                foreach (KeyValuePair<int, Category> keyValPair in _categories)
+                {
+                    var category = keyValPair.Value;
+                    var attributePDFs = new float[input.Length];
+                    for (int j = 0; j < input.Length; j++)
+                    {
+                        float gaussianPDF = CalculateGaussianPDF(input[j], category.Means[j], category.Stds[j]);
+                        attributePDFs[j] = gaussianPDF;
+                    }
+                    float p = 0;
+                    foreach (float pdf in attributePDFs)
+                        p *= pdf;
+                    categoryPDFs.Add(keyValPair.Key, p);
+                }
+                float sumOfPs = 0;
+                var categoryPsNormalized = new Dictionary<int, float>();
+                foreach (KeyValuePair<int, float> keyValPair in categoryPDFs)
+                    sumOfPs += keyValPair.Value;
+                foreach (KeyValuePair<int, float> keyValPair in categoryPDFs)
+                    categoryPsNormalized.Add(keyValPair.Key, keyValPair.Value / sumOfPs);
+
+                predictions[i] = categoryPsNormalized.Aggregate((x, y) => x.Value > y.Value ? x : y).Key;
+            }
+
+            return predictions;
+        }
+
+        public float AccuracyScore(int[] predictions)
+        {
+
+            return 0f;
+        }
+
         public void PrintModels(Dictionary<int, string> idToWord, string[] attributeNames = null)
         {
             foreach (KeyValuePair<int, Category> keyValPair in _categories)
@@ -100,19 +182,14 @@ class Program
                 {
                     if (attributeNames != null)
                         attributeNamesStr += attributeNames[i] + "\t";
-                    meansStr += category.Means[i] + "\t";
-                    stdsStr += category.Stds[i] + "\t";
+                    meansStr += category.Means[i].ToString("0.00") + "\t";
+                    stdsStr += category.Stds[i].ToString("0.00") + "\t";
                 }
                 if (attributeNames != null)
                     Console.WriteLine(attributeNamesStr);
                 Console.WriteLine(meansStr);
                 Console.WriteLine(stdsStr);
             }
-        }
-
-        public int[] Predict(float[][] x)
-        {
-            return null;
         }
     }
 
