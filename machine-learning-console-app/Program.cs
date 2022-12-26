@@ -22,27 +22,42 @@ class Program
 
     public Program(string[] args)
     {
+        int datasetID = 1;
+        bool useCrossvalPredict = true;
+        bool predictableShuffle = true;
+
         var datasets = new string[] { "iris", "banknote_authentication" };
-        var dataset = ReadDataset(datasets[0]);
+        var dataset = ReadDataset(datasets[datasetID]);
         //dataset.PrintDataset();
 
         var naiveBayesModel = new NaiveBayes(dataset.IdToWord);
-        naiveBayesModel.Fit(dataset.Inputs, dataset.Labels);
+
+        var x = dataset.Inputs;
+        var y = dataset.Labels;
+
+        if (predictableShuffle)
+        {
+            x = naiveBayesModel.PredictableShuffle(x, 5);
+            y = naiveBayesModel.PredictableShuffle(y, 5);
+        }
+
+        naiveBayesModel.Fit(x, y);
         //naiveBayesModel.PrintModels(dataset.IdToWord, dataset.AttributeNames);
         //naiveBayesModel.PrintTestCalculateGaussianPDF();
 
-        bool useCrossvalPredict = true;
-
         int[] predictions;
         if (useCrossvalPredict)
-            predictions = naiveBayesModel.CrossvalPredict(dataset.Inputs, dataset.Labels, 5);
+            predictions = naiveBayesModel.CrossvalPredict(x, y, 5);
         else
-            predictions = naiveBayesModel.Predict(dataset.Inputs);
+            predictions = naiveBayesModel.Predict(x);
 
-        naiveBayesModel.PrintPredictions(dataset.Labels, predictions);
-        naiveBayesModel.PrintAccuracyScore(predictions, dataset.Labels);
-        var confusionMatrix = naiveBayesModel.ConfusionMatrix(predictions, dataset.Labels);
-        naiveBayesModel.PrintConfusionMatrix(confusionMatrix);
+        if (!useCrossvalPredict)
+        {
+            naiveBayesModel.PrintPredictions(y, predictions);
+            naiveBayesModel.PrintAccuracyScore(predictions, y);
+            var confusionMatrix = naiveBayesModel.ConfusionMatrix(predictions, y);
+            naiveBayesModel.PrintConfusionMatrix(confusionMatrix);
+        }
     }
 
     public class NaiveBayes
@@ -306,6 +321,19 @@ class Program
             if (label != -1)
                 s += label;
             Console.WriteLine(s);
+        }
+
+        public T[] PredictableShuffle<T>(T[] arr, int times)
+        {
+            var lists = new List<T>[times];
+            for (int i = 0; i < lists.Length; i++)
+                lists[i] = new List<T>();
+            for (int i = 0; i < arr.Length; i++)
+                lists[i % times].Add(arr[i]);
+            var newList = new List<T>();
+            foreach (List<T> list in lists)
+                newList.AddRange(list);
+            return newList.ToArray();
         }
     }
 
