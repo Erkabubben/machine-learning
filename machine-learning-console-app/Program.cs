@@ -23,16 +23,16 @@ class Program
     public Program(string[] args)
     {
         var datasets = new string[] { "iris", "banknote_authentication" };
-        var dataset = ReadDataset(datasets[1]);
+        var dataset = ReadDataset(datasets[0]);
         //dataset.PrintDataset();
 
-        var naiveBayesModel = new NaiveBayes();
+        var naiveBayesModel = new NaiveBayes(dataset.IdToWord);
         naiveBayesModel.Fit(dataset.Inputs, dataset.Labels);
         //naiveBayesModel.PrintModels(dataset.IdToWord, dataset.AttributeNames);
         //naiveBayesModel.PrintTestCalculateGaussianPDF();
 
         var predictions = naiveBayesModel.Predict(dataset.Inputs);
-        naiveBayesModel.PrintPredictions(dataset.IdToWord, dataset.Labels, predictions);
+        naiveBayesModel.PrintPredictions(dataset.Labels, predictions);
         naiveBayesModel.PrintAccuracyScore(predictions, dataset.Labels);
         var confusionMatrix = naiveBayesModel.ConfusionMatrix(predictions, dataset.Labels);
         naiveBayesModel.PrintConfusionMatrix(confusionMatrix);
@@ -56,6 +56,44 @@ class Program
         }
 
         private Dictionary<int, Category> _categories;
+        private string[] _categoryNames;
+        public string[] CategoryNames => _categoryNames;
+
+        public NaiveBayes(Dictionary<int, string> idToWord)
+        {
+            _categoryNames = new string[idToWord.Count];
+            for (int i = 0; i < idToWord.Count; i++)
+                _categoryNames[i] = idToWord[i];
+        }
+
+        public int[] CrossvalPredict(float[][] x, int[] y, int folds)
+        {
+            var bucketStartIndexes = new int[folds];
+            int bucketSize = y.Length / folds;
+            bucketStartIndexes[0] = 0;
+            for (int i = 1; i < bucketStartIndexes.Length; i++)
+                bucketStartIndexes[i] = bucketStartIndexes[i - 1] + bucketSize;
+            for (int i = 0; i < bucketStartIndexes.Length; i++)
+            {
+                int bucketStartIndex = bucketStartIndexes[i];
+                int bucketEndIndex = i == bucketStartIndexes.Length - 1 ? bucketStartIndexes[i + 1] : y.Length - 1;
+                int bucketLength = bucketEndIndex - bucketStartIndex;
+                var xTesting = new float[bucketLength][];
+                var yTesting = new int[bucketLength];
+                Array.Copy(x, bucketStartIndex, xTesting, 0, bucketLength);
+                Array.Copy(y, bucketStartIndex, yTesting, 0, bucketLength);
+                var xTrainingList = x.ToList<float[]>();
+                xTrainingList.RemoveRange(bucketStartIndex, bucketEndIndex);
+                var xTraining = xTrainingList.ToArray();
+                var yTrainingList = y.ToList<int>();
+                yTrainingList.RemoveRange(bucketStartIndex, bucketEndIndex);
+                var yTraining = yTrainingList.ToArray();
+                Fit(xTraining, yTraining);
+                var predictions = Predict(xTesting);
+            }
+
+            return null;
+        }
 
         public void Fit(float[][] x, int[] y)
         {
@@ -186,7 +224,7 @@ class Program
             }
         }
 
-        public void PrintPredictions(Dictionary<int, string> idToWord, int[] x0, int[] x1)
+        public void PrintPredictions(int[] x0, int[] x1)
         {
             Console.WriteLine($"Printing predictions:");
             int correct = 0;
@@ -195,9 +233,7 @@ class Program
                 if (x0[i] == x1[i])
                     correct++;
 
-                var label0 = idToWord.ContainsKey(x0[i]) ? idToWord[x0[i]] : x0[i].ToString();
-                var label1 = idToWord.ContainsKey(x1[i]) ? idToWord[x1[i]] : x1[i].ToString();
-                Console.WriteLine($"\t{i} : {label0} / {label1}");
+                Console.WriteLine($"\t{i} : {_categoryNames[x0[i]]} / {_categoryNames[x1[i]]}");
             }
             Console.WriteLine($"Correct predictions : {correct} / {x0.Length}");
         }
@@ -225,7 +261,7 @@ class Program
                 string s = "\t" + y + "|";
                 for (int x = 0; x < confusionMatrix.Length; x++)
                 {
-                    s += confusionMatrix[x][y] + "\t";
+                    s += confusionMatrix[y][x] + "\t";
                 }
                 Console.WriteLine(s);
             }
