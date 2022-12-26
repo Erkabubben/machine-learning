@@ -31,7 +31,14 @@ class Program
         //naiveBayesModel.PrintModels(dataset.IdToWord, dataset.AttributeNames);
         //naiveBayesModel.PrintTestCalculateGaussianPDF();
 
-        var predictions = naiveBayesModel.Predict(dataset.Inputs);
+        bool useCrossvalPredict = true;
+
+        int[] predictions;
+        if (useCrossvalPredict)
+            predictions = naiveBayesModel.CrossvalPredict(dataset.Inputs, dataset.Labels, 5);
+        else
+            predictions = naiveBayesModel.Predict(dataset.Inputs);
+
         naiveBayesModel.PrintPredictions(dataset.Labels, predictions);
         naiveBayesModel.PrintAccuracyScore(predictions, dataset.Labels);
         var confusionMatrix = naiveBayesModel.ConfusionMatrix(predictions, dataset.Labels);
@@ -68,6 +75,17 @@ class Program
 
         public int[] CrossvalPredict(float[][] x, int[] y, int folds)
         {
+            void PrintTrainingAndTestingArrays(int bucketStartIndex, float[][] xTesting, int[] yTesting, float[][] xTraining, int[] yTraining)
+            {
+                Console.WriteLine($"\tTesting:");
+                for (int j = 0; j < xTesting.Length; j++)
+                    PrintFloatArray(bucketStartIndex + j, xTesting[j], yTesting[j]);
+                Console.WriteLine($"\tTraining:");
+                for (int j = 0; j < xTraining.Length; j++)
+                    PrintFloatArray(bucketStartIndex + j, xTraining[j], yTraining[j]);
+            }
+
+            List<float> accuracyScores = new List<float>();
             var bucketStartIndexes = new int[folds];
             int bucketSize = y.Length / folds;
             bucketStartIndexes[0] = 0;
@@ -76,23 +94,36 @@ class Program
             for (int i = 0; i < bucketStartIndexes.Length; i++)
             {
                 int bucketStartIndex = bucketStartIndexes[i];
-                int bucketEndIndex = i == bucketStartIndexes.Length - 1 ? bucketStartIndexes[i + 1] : y.Length - 1;
+                int bucketEndIndex = i != bucketStartIndexes.Length - 1 ? bucketStartIndexes[i + 1] : y.Length;
                 int bucketLength = bucketEndIndex - bucketStartIndex;
                 var xTesting = new float[bucketLength][];
                 var yTesting = new int[bucketLength];
                 Array.Copy(x, bucketStartIndex, xTesting, 0, bucketLength);
                 Array.Copy(y, bucketStartIndex, yTesting, 0, bucketLength);
                 var xTrainingList = x.ToList<float[]>();
-                xTrainingList.RemoveRange(bucketStartIndex, bucketEndIndex);
+                xTrainingList.RemoveRange(bucketStartIndex, bucketLength);
                 var xTraining = xTrainingList.ToArray();
                 var yTrainingList = y.ToList<int>();
-                yTrainingList.RemoveRange(bucketStartIndex, bucketEndIndex);
+                yTrainingList.RemoveRange(bucketStartIndex, bucketLength);
                 var yTraining = yTrainingList.ToArray();
                 Fit(xTraining, yTraining);
                 var predictions = Predict(xTesting);
+                // Print Fold results
+                Console.WriteLine($"Fold {i} ({bucketStartIndex}, {bucketEndIndex}, {bucketLength}):");
+                //PrintTrainingAndTestingArrays(bucketStartIndex, xTesting, yTesting, xTraining, yTraining);
+                PrintPredictions(yTesting, predictions, bucketStartIndex);
+                PrintAccuracyScore(predictions, yTesting);
+                var confusionMatrix = ConfusionMatrix(predictions, yTesting);
+                PrintConfusionMatrix(confusionMatrix);
+                accuracyScores.Add(AccuracyScore(predictions, yTesting));
             }
+            string accuracyScoreStr = "All Accuracy Scores: ";
+            foreach (var score in accuracyScores)
+                accuracyScoreStr += score.ToString("0.00") + "\t";
+            Console.WriteLine(accuracyScoreStr);
+            Console.WriteLine($"Total Accuracy Score: {accuracyScores.Sum() / folds}");
 
-            return null;
+            return Predict(x);
         }
 
         public void Fit(float[][] x, int[] y)
@@ -224,7 +255,7 @@ class Program
             }
         }
 
-        public void PrintPredictions(int[] x0, int[] x1)
+        public void PrintPredictions(int[] x0, int[] x1, int startIndex = 0)
         {
             Console.WriteLine($"Printing predictions:");
             int correct = 0;
@@ -233,7 +264,7 @@ class Program
                 if (x0[i] == x1[i])
                     correct++;
 
-                Console.WriteLine($"\t{i} : {_categoryNames[x0[i]]} / {_categoryNames[x1[i]]}");
+                Console.WriteLine($"\t{startIndex + i} : {_categoryNames[x0[i]]} / {_categoryNames[x1[i]]}");
             }
             Console.WriteLine($"Correct predictions : {correct} / {x0.Length}");
         }
@@ -265,6 +296,16 @@ class Program
                 }
                 Console.WriteLine(s);
             }
+        }
+
+        public void PrintFloatArray(int id, float[] arr, int label = -1)
+        {
+            string s = $"\t\t{id}: ";
+            foreach (float f in arr)
+                s += f.ToString("0.00") + "\t";
+            if (label != -1)
+                s += label;
+            Console.WriteLine(s);
         }
     }
 
