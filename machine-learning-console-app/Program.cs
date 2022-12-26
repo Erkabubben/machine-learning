@@ -23,7 +23,7 @@ class Program
     public Program(string[] args)
     {
         var datasets = new string[] { "iris", "banknote_authentication" };
-        var dataset = ReadDataset(datasets[0]);
+        var dataset = ReadDataset(datasets[1]);
         //dataset.PrintDataset();
 
         var naiveBayesModel = new NaiveBayes();
@@ -34,6 +34,8 @@ class Program
         var predictions = naiveBayesModel.Predict(dataset.Inputs);
         naiveBayesModel.PrintPredictions(dataset.IdToWord, dataset.Labels, predictions);
         naiveBayesModel.PrintAccuracyScore(predictions, dataset.Labels);
+        var confusionMatrix = naiveBayesModel.ConfusionMatrix(predictions, dataset.Labels);
+        naiveBayesModel.PrintConfusionMatrix(confusionMatrix);
     }
 
     public class NaiveBayes
@@ -143,6 +145,23 @@ class Program
             return (float)correct / predictions.Length;
         }
 
+        public int[][] ConfusionMatrix(int[] predictions, int[] y)
+        {
+            int max = Math.Max(predictions.Max(), y.Max()) + 1;
+            var confusionMatrix = new int[max][];
+            for (int i = 0; i < confusionMatrix.Length; i++)
+            {
+                confusionMatrix[i] = new int[max];
+                for (int j = 0; j < confusionMatrix[i].Length; j++)
+                    confusionMatrix[i][j] = 0;
+            }
+            for (int i = 0; i < predictions.Length; i++)
+            {
+                confusionMatrix[y[i]][predictions[i]]++;
+            }
+            return confusionMatrix;
+        }
+
         public void PrintModels(Dictionary<int, string> idToWord, string[] attributeNames = null)
         {
             foreach (KeyValuePair<int, Category> keyValPair in _categories)
@@ -191,8 +210,25 @@ class Program
             Console.WriteLine("Test GaussianPDF Function 3: " + CalculateGaussianPDF(0.8f, 1.40f, 0.24f));
         }
         public void PrintAccuracyScore(int[] predictions, int[] y)
+            => Console.WriteLine($"Accuracy: {AccuracyScore(predictions, y)}");
+
+        public void PrintConfusionMatrix(int[][] confusionMatrix, Dictionary<int, string> idToWord = null)
         {
-            Console.WriteLine($"Accuracy: {AccuracyScore(predictions, y)}");
+            Console.WriteLine("Confusion Matrix:");
+            string firstRow = "\t";
+            for (int x = 0; x < confusionMatrix.Length; x++)
+                firstRow += x + "\t";
+            Console.WriteLine(firstRow);
+            Console.WriteLine("-----------------------------");
+            for (int y = 0; y < confusionMatrix.Length; y++)
+            {
+                string s = "\t" + y + "|";
+                for (int x = 0; x < confusionMatrix.Length; x++)
+                {
+                    s += confusionMatrix[x][y] + "\t";
+                }
+                Console.WriteLine(s);
+            }
         }
     }
 
