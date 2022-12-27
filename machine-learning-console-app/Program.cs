@@ -123,6 +123,7 @@ class Program
 
             List<float> accuracyScores = new List<float>();
             List<int> correctPredictions = new List<int>();
+            List<int[][]> consufionMatrices = new List<int[][]>();
 
             // Initiate cross-validation.
             for (int i = 0; i < bucketStartIndexes.Length; i++)
@@ -146,24 +147,52 @@ class Program
                 var predictions = Predict(xTesting);
                 // Print Fold results.
                 Console.WriteLine($"Fold {i} ({bucketStartIndex}, {bucketEndIndex}, {bucketLength}):");
+                Console.WriteLine("----------------------------------------------------------------------------------");
                 //PrintTrainingAndTestingArrays(bucketStartIndex, xTesting, yTesting, xTraining, yTraining);
                 PrintPredictions(yTesting, predictions, bucketStartIndex);
                 PrintAccuracyScore(predictions, yTesting);
                 var confusionMatrix = ConfusionMatrix(predictions, yTesting);
+                consufionMatrices.Add(confusionMatrix);
                 PrintConfusionMatrix(confusionMatrix);
                 accuracyScores.Add(AccuracyScore(predictions, yTesting));
                 correctPredictions.Add(CountCorrectPredictions(predictions, yTesting));
                 Console.WriteLine("----------------------------------------------------------------------------------");
             }
             // Print final results after all folds have finished.
+            Console.WriteLine("Total Results:");
+            Console.WriteLine("----------------------------------------------------------------------------------");
             string accuracyScoreStr = "All Accuracy Scores: ";
             foreach (var score in accuracyScores)
                 accuracyScoreStr += score.ToString("0.00") + "\t";
             Console.WriteLine(accuracyScoreStr);
             Console.WriteLine($"Total Amount of Correct Predictions: {correctPredictions.Sum()} / {x.Length}");
             Console.WriteLine($"Total Accuracy Score: {accuracyScores.Sum() / folds}");
+            PrintConfusionMatrix(MergeConfusionMatrices(consufionMatrices));
 
             return Predict(x);
+        }
+
+        /// <summary>
+        /// Merges a list of confusion matrices into one.
+        /// </summary>
+        /// <param name="consufionMatrices">A list of confusion matrices.</param>
+        /// <returns>A merged confusion matrix.</returns>
+        private int[][] MergeConfusionMatrices(List<int[][]> consufionMatrices)
+        {
+            int xSize = consufionMatrices[0].Length;
+            int ySize = consufionMatrices[0][0].Length;
+            var finalConfusionMatrix = new int[xSize][];
+            for (int x = 0; x < xSize; x++)
+                finalConfusionMatrix[x] = new int[ySize];
+            foreach (var confusionMatrix in consufionMatrices)
+            {
+                for (int x = 0; x < xSize; x++)
+                {
+                    for (int y = 0; y < ySize; y++)
+                        finalConfusionMatrix[x][y] += confusionMatrix[x][y];
+                }
+            }
+            return finalConfusionMatrix;
         }
 
         /// <summary>
