@@ -6,6 +6,12 @@ class Program
 {
     private static string appFolderPath = PathGetDirectoryNameTimes(4, AppDomain.CurrentDomain.BaseDirectory);
 
+    /// <summary>
+    /// Used to apply Path.GetDirectoryName() to a path string a specified amount of times.
+    /// </summary>
+    /// <param name="times">The times Path.GetDirectoryName() should be applied.</param>
+    /// <param name="s">The path string.</param>
+    /// <returns>A new path string.</returns>
     private static string PathGetDirectoryNameTimes(int times, string s)
     {
         for (int i = 0; i < times; i++)
@@ -22,37 +28,35 @@ class Program
 
     public Program(string[] args)
     {
-        int datasetID = 1;
-        bool useCrossvalPredict = true;
-        bool predictableShuffle = true;
+        // Program parameters
+        int crossvalPredictFolds = 5; // Amount of CrossvalPredict folds, set to 0 to train and test on the full dataset.
+        int predictableShuffle = 5; // Predictably shuffles the dataset - see NaiveBayesModel.PredictableShuffle().
+        var availableDatasets = new string[] { "iris", "banknote_authentication" }; // Names of available datasets.
+        int datasetID = 0;  // ID of the dataset to use from availableDatasets array.
 
-        var datasets = new string[] { "iris", "banknote_authentication" };
-        var dataset = ReadDataset(datasets[datasetID]);
-        //dataset.PrintDataset();
+        var dataset = ReadDataset(availableDatasets[datasetID]);
+        //dataset.PrintDataset(); // Uncomment line to print dataset to console after parsing.
 
         var naiveBayesModel = new NaiveBayes(dataset.IdToWord);
-
         var x = dataset.Inputs;
         var y = dataset.Labels;
 
-        if (predictableShuffle)
+        // Applies Predictable Shuffle to dataset.
+        if (predictableShuffle > 1)
         {
-            x = naiveBayesModel.PredictableShuffle(x, 5);
-            y = naiveBayesModel.PredictableShuffle(y, 5);
+            x = naiveBayesModel.PredictableShuffle(x, predictableShuffle);
+            y = naiveBayesModel.PredictableShuffle(y, predictableShuffle);
         }
 
-        naiveBayesModel.Fit(x, y);
-        //naiveBayesModel.PrintModels(dataset.IdToWord, dataset.AttributeNames);
-        //naiveBayesModel.PrintTestCalculateGaussianPDF();
-
         int[] predictions;
-        if (useCrossvalPredict)
+        if (crossvalPredictFolds > 1)
             predictions = naiveBayesModel.CrossvalPredict(x, y, 5);
         else
-            predictions = naiveBayesModel.Predict(x);
-
-        if (!useCrossvalPredict)
         {
+            naiveBayesModel.Fit(x, y);
+            //naiveBayesModel.PrintModels(dataset.IdToWord, dataset.AttributeNames);
+            //naiveBayesModel.PrintTestCalculateGaussianPDF();
+            predictions = naiveBayesModel.Predict(x);
             naiveBayesModel.PrintPredictions(y, predictions);
             naiveBayesModel.PrintAccuracyScore(predictions, y);
             var confusionMatrix = naiveBayesModel.ConfusionMatrix(predictions, y);
@@ -60,8 +64,14 @@ class Program
         }
     }
 
+    /// <summary>
+    /// Class responsible for training and testing Naive Bayes algorithm machine learning models.
+    /// </summary>
     public class NaiveBayes
     {
+        /// <summary>
+        /// Class respresting a category/label.
+        /// </summary>
         private class Category
         {
             private List<float[]> _inputs;
@@ -81,6 +91,10 @@ class Program
         private string[] _categoryNames;
         public string[] CategoryNames => _categoryNames;
 
+        /// <summary>
+        /// Constructor.
+        /// </summary>
+        /// <param name="idToWord">IDtoWord dictionary from a dataset, only used to retrieve category names.</param>
         public NaiveBayes(Dictionary<int, string> idToWord)
         {
             _categoryNames = new string[idToWord.Count];
@@ -100,14 +114,19 @@ class Program
                     PrintFloatArray(bucketStartIndex + j, xTraining[j], yTraining[j]);
             }
 
-            List<float> accuracyScores = new List<float>();
+            // Determine bucket size and start indices.
             var bucketStartIndexes = new int[folds];
             int bucketSize = y.Length / folds;
             bucketStartIndexes[0] = 0;
             for (int i = 1; i < bucketStartIndexes.Length; i++)
                 bucketStartIndexes[i] = bucketStartIndexes[i - 1] + bucketSize;
+
+            List<float> accuracyScores = new List<float>();
+
+            // Initiate cross-validation.
             for (int i = 0; i < bucketStartIndexes.Length; i++)
             {
+                // Create arrays for training and testing data.
                 int bucketStartIndex = bucketStartIndexes[i];
                 int bucketEndIndex = i != bucketStartIndexes.Length - 1 ? bucketStartIndexes[i + 1] : y.Length;
                 int bucketLength = bucketEndIndex - bucketStartIndex;
@@ -121,9 +140,10 @@ class Program
                 var yTrainingList = y.ToList<int>();
                 yTrainingList.RemoveRange(bucketStartIndex, bucketLength);
                 var yTraining = yTrainingList.ToArray();
+                // Train and test data.
                 Fit(xTraining, yTraining);
                 var predictions = Predict(xTesting);
-                // Print Fold results
+                // Print Fold results.
                 Console.WriteLine($"Fold {i} ({bucketStartIndex}, {bucketEndIndex}, {bucketLength}):");
                 //PrintTrainingAndTestingArrays(bucketStartIndex, xTesting, yTesting, xTraining, yTraining);
                 PrintPredictions(yTesting, predictions, bucketStartIndex);
@@ -132,6 +152,7 @@ class Program
                 PrintConfusionMatrix(confusionMatrix);
                 accuracyScores.Add(AccuracyScore(predictions, yTesting));
             }
+            // Print final results after all folds have finished.
             string accuracyScoreStr = "All Accuracy Scores: ";
             foreach (var score in accuracyScores)
                 accuracyScoreStr += score.ToString("0.00") + "\t";
