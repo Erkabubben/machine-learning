@@ -70,7 +70,7 @@ class Program
     public class NaiveBayes
     {
         /// <summary>
-        /// Class respresting a category/label.
+        /// Class respresenting a category/label.
         /// </summary>
         private class Category
         {
@@ -162,6 +162,11 @@ class Program
             return Predict(x);
         }
 
+        /// <summary>
+        /// Trains the Naive Bayes model on input examples x and labels y.
+        /// </summary>
+        /// <param name="x">Input examples.</param>
+        /// <param name="y">Labels.</param>
         public void Fit(float[][] x, int[] y)
         {
             var categories = new Dictionary<int, Category>();
@@ -194,42 +199,63 @@ class Program
                     category.Means[j] = values.Average();
                     category.Stds[j] = (float)StandardDeviation(values);
                 }
+                category.Inputs = null;
             }
 
             _categories = categories;
         }
 
+        /// <summary>
+        /// Calculates the probability of the input value by the Gaussian Probability Density Function (PDF).
+        /// </summary>
+        /// <param name="x">The provided input value.</param>
+        /// <param name="mean">The mean of the attribute.</param>
+        /// <param name="std">The standard deviation of the attribute.</param>
+        /// <returns>Probability as a float value.</returns>
         private float CalculateGaussianPDF(float x, float mean, float std)
             => (float)((1 / (Math.Sqrt(2 * Math.PI) * std)) * Math.Pow(Math.E, (-(Math.Pow((x - mean), 2)) / (2 * Math.Pow(std, 2)))));
 
+        /// <summary>
+        /// Classifies examples x and returns a list of predictions.
+        /// </summary>
+        /// <param name="x">Input examples.</param>
+        /// <returns>A list of predictions (categories are represented as integers).</returns>
         public int[] Predict(float[][] x)
         {
             var predictions = new int[x.Length];
+            // Iterates the input values in the provided x array and assigns categories to the predictions array.
             for (int i = 0; i < predictions.Length; i++)
             {
                 var input = x[i];
+                // Sets up a dictionary used to store category ID's and attribute PDF products.
                 var categoryPDFs = new Dictionary<int, float>();
+                // Iterates each category.
                 foreach (KeyValuePair<int, Category> keyValPair in _categories)
                 {
                     var category = keyValPair.Value;
+                    // Sets up the attributePDFs array and assigns PDF scores.
                     var attributePDFs = new float[input.Length];
                     for (int j = 0; j < input.Length; j++)
                     {
                         float gaussianPDF = CalculateGaussianPDF(input[j], category.Means[j], category.Stds[j]);
                         attributePDFs[j] = gaussianPDF;
                     }
+                    // Multiplies all the values in the attributePDFs array.
                     float p = 1f;
                     foreach (float pdf in attributePDFs)
                         p *= pdf;
+                    // Adds the category ID and the attributePDFs product to the categoryPDFs dictionary.
                     categoryPDFs.Add(keyValPair.Key, p);
                 }
+                // Determines the sum of all attributePDF scores in the categoryPDFs dictionary.
                 float sumOfPs = 0;
                 foreach (KeyValuePair<int, float> keyValPair in categoryPDFs)
                     sumOfPs += keyValPair.Value;
+                // Normalizes category scores.
                 var categoryPsNormalized = new Dictionary<int, float>();
                 foreach (KeyValuePair<int, float> keyValPair in categoryPDFs)
                     categoryPsNormalized.Add(keyValPair.Key, keyValPair.Value / sumOfPs);
-
+                // Selects the category with the highest probability score and assigns it to predictions array.
                 var categoryWithHighestProbability = categoryPsNormalized.Aggregate(
                     (x, y) => x.Value > y.Value ? x : y).Key;
                 predictions[i] = categoryWithHighestProbability;
@@ -238,6 +264,12 @@ class Program
             return predictions;
         }
 
+        /// <summary>
+        /// Calculates accuracy score for a list of predictions.
+        /// </summary>
+        /// <param name="predictions">A list of predictions.</param>
+        /// <param name="y">Actual labels.</param>
+        /// <returns></returns>
         public float AccuracyScore(int[] predictions, int[] y)
         {
             int correct = 0;
@@ -250,6 +282,12 @@ class Program
             return (float)correct / predictions.Length;
         }
 
+        /// <summary>
+        /// Generates a confusion matrix and returns it as an integer matrix.
+        /// </summary>
+        /// <param name="predictions">A list of predictions.</param>
+        /// <param name="y">Actual labels.</param>
+        /// <returns></returns>
         public int[][] ConfusionMatrix(int[] predictions, int[] y)
         {
             int max = Math.Max(predictions.Max(), y.Max()) + 1;
