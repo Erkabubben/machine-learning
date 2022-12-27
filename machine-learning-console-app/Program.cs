@@ -169,6 +169,7 @@ class Program
         /// <param name="y">Labels.</param>
         public void Fit(float[][] x, int[] y)
         {
+            // Set up new dictionary of categories.
             var categories = new Dictionary<int, Category>();
             for (int i = 0; i < x.Length; i++)
             {
@@ -186,6 +187,7 @@ class Program
                 return Math.Sqrt(values.Average(v => Math.Pow(v - avg, 2)));
             }
 
+            // Calculates and assigns mean and standard deviation values to each attribute of each category.
             foreach (var category in categories.Values)
             {
                 category.Means = new float[category.Inputs[0].Length];
@@ -199,9 +201,12 @@ class Program
                     category.Means[j] = values.Average();
                     category.Stds[j] = (float)StandardDeviation(values);
                 }
+                // Deletes input data from category as storing it in memory is not necessary after calculating
+                // mean and standard deviation values.
                 category.Inputs = null;
             }
 
+            // Assigns the new categories dictionary to the NaiveBayes object.
             _categories = categories;
         }
 
@@ -267,8 +272,8 @@ class Program
         /// <summary>
         /// Calculates accuracy score for a list of predictions.
         /// </summary>
-        /// <param name="predictions">A list of predictions.</param>
-        /// <param name="y">Actual labels.</param>
+        /// <param name="predictions">An array of predictions.</param>
+        /// <param name="y">An array of actual labels.</param>
         /// <returns></returns>
         public float AccuracyScore(int[] predictions, int[] y)
         {
@@ -285,8 +290,8 @@ class Program
         /// <summary>
         /// Generates a confusion matrix and returns it as an integer matrix.
         /// </summary>
-        /// <param name="predictions">A list of predictions.</param>
-        /// <param name="y">Actual labels.</param>
+        /// <param name="predictions">An array of predictions.</param>
+        /// <param name="y">An array of actual labels.</param>
         /// <returns></returns>
         public int[][] ConfusionMatrix(int[] predictions, int[] y)
         {
@@ -305,6 +310,11 @@ class Program
             return confusionMatrix;
         }
 
+        /// <summary>
+        /// Prints the models that are currently trained and stored in memory to the console.
+        /// </summary>
+        /// <param name="idToWord">The dataset's IDtoWord dictionary, used to retrieve label names.</param>
+        /// <param name="attributeNames">A string array of attribute names.</param>
         public void PrintModels(Dictionary<int, string> idToWord, string[] attributeNames = null)
         {
             foreach (KeyValuePair<int, Category> keyValPair in _categories)
@@ -329,6 +339,13 @@ class Program
             }
         }
 
+        /// <summary>
+        /// Prints the contents of an array of predictions along with an array of actual labels,
+        /// for easy comparison of which individual entries are correctly and incorrectly predicted.
+        /// </summary>
+        /// <param name="x0">Array of labels to be used for the left-side column.</param>
+        /// <param name="x1">Array of labels to be used for the right-side column.</param>
+        /// <param name="startIndex">The number to start the ID counter from - default is 0.</param>
         public void PrintPredictions(int[] x0, int[] x1, int startIndex = 0)
         {
             Console.WriteLine($"Printing predictions:");
@@ -343,6 +360,9 @@ class Program
             Console.WriteLine($"Correct predictions : {correct} / {x0.Length}");
         }
 
+        /// <summary>
+        /// Prints out a quick test of the CalculateGaussianPDF function.
+        /// </summary>
         public void PrintTestCalculateGaussianPDF()
         {
             Console.WriteLine("Test GaussianPDF Function 0: " + CalculateGaussianPDF(1.6f, 1.45f, 0.14f));
@@ -350,10 +370,20 @@ class Program
             Console.WriteLine("Test GaussianPDF Function 2: " + CalculateGaussianPDF(1.6f, 4.40f, 0.52f));
             Console.WriteLine("Test GaussianPDF Function 3: " + CalculateGaussianPDF(0.8f, 1.40f, 0.24f));
         }
+
+        /// <summary>
+        /// Prints the accuracy score of an array of predictions compared to an array of actual labels.
+        /// </summary>
+        /// <param name="predictions">An array of predictions.</param>
+        /// <param name="y">An array of actual labels.</param>
         public void PrintAccuracyScore(int[] predictions, int[] y)
             => Console.WriteLine($"Accuracy: {AccuracyScore(predictions, y)}");
 
-        public void PrintConfusionMatrix(int[][] confusionMatrix, Dictionary<int, string> idToWord = null)
+        /// <summary>
+        /// Prints out a confusion matrix to the console.
+        /// </summary>
+        /// <param name="confusionMatrix">The confusion matrix to be printed.</param>
+        public void PrintConfusionMatrix(int[][] confusionMatrix)
         {
             Console.WriteLine("Confusion Matrix:");
             string firstRow = "\t";
@@ -372,6 +402,12 @@ class Program
             }
         }
 
+        /// <summary>
+        /// Prints an array of floats along with an optional label to the console as a single line.
+        /// </summary>
+        /// <param name="id">ID that should be printed along with the data.</param>
+        /// <param name="arr">An array of floats.</param>
+        /// <param name="label">Optional label to be printed after the floats.</param>
         public void PrintFloatArray(int id, float[] arr, int label = -1)
         {
             string s = $"\t\t{id}: ";
@@ -382,13 +418,21 @@ class Program
             Console.WriteLine(s);
         }
 
-        public T[] PredictableShuffle<T>(T[] arr, int times)
+        /// <summary>
+        /// Performs a predictable shuffle of an array. Useful when input data is ordered by labels and you
+        /// want to don't want cross-validation testing buckets to just contain data with the same label.
+        /// </summary>
+        /// <typeparam name="T">The type of data in the provided array.</typeparam>
+        /// <param name="arr">An array.</param>
+        /// <param name="n">How many separate lists you want to split the data into before it is returned as a single array.</param>
+        /// <returns>A shuffled array.</returns>
+        public T[] PredictableShuffle<T>(T[] arr, int n)
         {
-            var lists = new List<T>[times];
+            var lists = new List<T>[n];
             for (int i = 0; i < lists.Length; i++)
                 lists[i] = new List<T>();
             for (int i = 0; i < arr.Length; i++)
-                lists[i % times].Add(arr[i]);
+                lists[i % n].Add(arr[i]);
             var newList = new List<T>();
             foreach (List<T> list in lists)
                 newList.AddRange(list);
@@ -396,6 +440,9 @@ class Program
         }
     }
 
+    /// <summary>
+    /// Class representing a parsed dataset.
+    /// </summary>
     public class ParsedDataset
     {
         private float[][] _inputs;
@@ -429,6 +476,7 @@ class Program
                 return id;
             }
         }
+
         public void PrintIdToWord()
         {
             Console.WriteLine($"Printing contents of IdToWord:");
@@ -457,6 +505,11 @@ class Program
         }
     }
 
+    /// <summary>
+    /// Reads a CSV file and returns it as a ParsedDataset.
+    /// </summary>
+    /// <param name="nameOfDataset">The name of the file in the datasets folder to read, excluding file extension.</param>
+    /// <returns>A ParsedDataset object.</returns>
     private ParsedDataset ReadDataset(string nameOfDataset)
     {
         void ReadCSV(string path, Action<string[], string[]> onReadLineAction)
