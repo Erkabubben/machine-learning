@@ -122,6 +122,7 @@ class Program
                 bucketStartIndexes[i] = bucketStartIndexes[i - 1] + bucketSize;
 
             List<float> accuracyScores = new List<float>();
+            List<int> correctPredictions = new List<int>();
 
             // Initiate cross-validation.
             for (int i = 0; i < bucketStartIndexes.Length; i++)
@@ -151,12 +152,15 @@ class Program
                 var confusionMatrix = ConfusionMatrix(predictions, yTesting);
                 PrintConfusionMatrix(confusionMatrix);
                 accuracyScores.Add(AccuracyScore(predictions, yTesting));
+                correctPredictions.Add(CountCorrectPredictions(predictions, yTesting));
+                Console.WriteLine("----------------------------------------------------------------------------------");
             }
             // Print final results after all folds have finished.
             string accuracyScoreStr = "All Accuracy Scores: ";
             foreach (var score in accuracyScores)
                 accuracyScoreStr += score.ToString("0.00") + "\t";
             Console.WriteLine(accuracyScoreStr);
+            Console.WriteLine($"Total Amount of Correct Predictions: {correctPredictions.Sum()} / {x.Length}");
             Console.WriteLine($"Total Accuracy Score: {accuracyScores.Sum() / folds}");
 
             return Predict(x);
@@ -274,8 +278,17 @@ class Program
         /// </summary>
         /// <param name="predictions">An array of predictions.</param>
         /// <param name="y">An array of actual labels.</param>
-        /// <returns></returns>
+        /// <returns>The accuracy score as a float.</returns>
         public float AccuracyScore(int[] predictions, int[] y)
+            => (float)CountCorrectPredictions(predictions, y) / predictions.Length;
+
+        /// <summary>
+        /// Compares an array of predictions with an array of labels and returns the amount of correct predictions.
+        /// </summary>
+        /// <param name="predictions">An array of predictions.</param>
+        /// <param name="y">An array of actual labels.</param>
+        /// <returns>The amount of correct predictions.</returns>
+        public int CountCorrectPredictions(int[] predictions, int[] y)
         {
             int correct = 0;
             for (int i = 0; i < predictions.Length; i++)
@@ -284,7 +297,7 @@ class Program
                     correct++;
             }
 
-            return (float)correct / predictions.Length;
+            return correct;
         }
 
         /// <summary>
@@ -390,7 +403,7 @@ class Program
             for (int x = 0; x < confusionMatrix.Length; x++)
                 firstRow += x + "\t";
             Console.WriteLine(firstRow);
-            Console.WriteLine("-----------------------------");
+            Console.WriteLine("\t--------------------------------------------------------------------------");
             for (int y = 0; y < confusionMatrix.Length; y++)
             {
                 string s = "\t" + y + "|";
